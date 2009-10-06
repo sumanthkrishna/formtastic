@@ -744,18 +744,24 @@ module Formtastic #:nodoc:
     # </fieldset>
     #
     def date_or_datetime_input(method, options)
-      inputs = inputs_for_date_or_datetime(method, options)
+      visible_inputs, hidden_inputs = inputs_for_date_or_datetime(method, options)
 
       # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
       datetime = @object ? @object.send(method) : nil
 
-      hidden_fields_capture = hidden_fields_for_date_or_datetime(inputs, datetime, options)
-      list_items_capture = list_items_for_date_or_datetime(inputs, datetime, options)
+      hidden_fields_capture = hidden_fields_for_date_or_datetime(hidden_inputs, datetime)
+      list_items_capture = list_items_for_date_or_datetime(visible_inputs, datetime, options)
 
       hidden_fields_capture + field_set_and_list_wrapping_for_method(method, options, list_items_capture)
     end
 
-    # Compiles array of ordered inputs for date, time and datetime with the field name and HTML ID
+    # Compiles array of ordered inputs for date, time and datetime fields. Returns two arrays the
+    # first being the visible inputs and the second being the hidden inputs. Each array contains
+    # and array of the inputs with their respective field name and HTML ID, eg.
+    #
+    #   [ [ :year,  "created_at(1i)", "post_created_at_1i" ],
+    #     [ :month, "created_at(2i)", "post_created_at_2i" ],
+    #     [ :day,   "created_at(3i)", "post_created_at_3i" ] ]
     #
     def inputs_for_date_or_datetime(method, options)
       position = { :year => 1, :month => 2, :day => 3, :hour => 4, :minute => 5, :second => 6 }
@@ -764,9 +770,16 @@ module Formtastic #:nodoc:
       time_inputs = [:hour, :minute]
       time_inputs << [:second] if options[:include_seconds]
 
-      (inputs + time_inputs).map do |input|
-        [ input, "#{method}(#{position[input]}i)", generate_html_id(method, "#{position[input]}i") ]
+      all_inputs = []
+      (inputs + time_inputs).each do |input|
+        # Excludes remaining times inputs if a time input is discarded
+        break if options["discard_#{input}".intern] && [:hour, :minute, :second].include?(input)
+
+        all_inputs << [ input, "#{method}(#{position[input]}i)", generate_html_id(method, "#{position[input]}i") ]
       end
+
+      # Partitions inputs into visible and hidden arrays based on the discard option for each input
+      all_inputs.partition {|input| options["discard_#{input[0]}".intern].nil? }
     end
 
     # List items for visible inputs of a date, time or datetime
@@ -776,10 +789,6 @@ module Formtastic #:nodoc:
       html_options = options.delete(:input_html) || {}
 
       inputs.each do |(input, field_name, html_id)|
-        if options["discard_#{input}".intern]
-          [:hour, :minute, :second].include?(input) ? break : next
-        end
-
         opts = set_options(options).merge(:prefix => @object_name, :field_name => field_name)
         item_label_text = I18n.t(input.to_s, :default => input.to_s.humanize, :scope => [:datetime, :prompts])
 
@@ -793,15 +802,11 @@ module Formtastic #:nodoc:
 
     # Hidden fields for discarded inputs of a date, time or datetime
     #
-    def hidden_fields_for_date_or_datetime(inputs, value, options)
+    def hidden_fields_for_date_or_datetime(inputs, value)
       hidden_fields_capture = ""
       inputs.each do |(input, field_name, html_id)|
-        if options["discard_#{input}".intern]
-          break if [:hour, :minute, :second].include?(input)
-
-          hidden_value = value.respond_to?(input) ? value.send(input) : value
-          hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
-        end
+        hidden_value = value.respond_to?(input) ? value.send(input) : value
+        hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
       end
       hidden_fields_capture
     end
