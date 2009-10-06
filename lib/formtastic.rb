@@ -743,8 +743,6 @@ module Formtastic #:nodoc:
     #   </ol>
     # </fieldset>
     #
-    # This is an absolute abomination, but so is the official Rails select_date().
-    #
     def date_or_datetime_input(method, options)
       inputs = inputs_for_date_or_datetime(method, options)
 
@@ -771,6 +769,8 @@ module Formtastic #:nodoc:
       end
     end
 
+    # List items for visible inputs of a date, time or datetime
+    #
     def list_items_for_date_or_datetime(inputs, value, options)
       list_items_capture = ""
       html_options = options.delete(:input_html) || {}
@@ -791,6 +791,8 @@ module Formtastic #:nodoc:
       list_items_capture
     end
 
+    # Hidden fields for discarded inputs of a date, time or datetime
+    #
     def hidden_fields_for_date_or_datetime(inputs, value, options)
       hidden_fields_capture = ""
       inputs.each do |(input, field_name, html_id)|
