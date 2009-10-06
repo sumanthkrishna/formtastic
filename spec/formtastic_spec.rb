@@ -2479,8 +2479,7 @@ describe 'Formtastic' do
         end
 
         it 'should have two selects for hour and minute' do
-          #output_buffer.should have_tag('form li.time fieldset ol li select', :count => 2)
-          output_buffer.should have_tag('form li.time fieldset ol li', :count => 2)
+          output_buffer.should have_tag('form li.time fieldset ol li>select', :count => 2)
         end
       end
 
