@@ -112,7 +112,7 @@ module Formtastic #:nodoc:
     end
 
     # Creates an input fieldset and ol tag wrapping for use around a set of inputs.  It can be
-    # called either with a block (in which you can do the usual Rails form stuff, HTML, ERB, etc),
+    # called either with a block (in which you can do the usual Rails form stuff, nHTML, ERB, etc),
     # or with a list of fields.  These two examples are functionally equivalent:
     #
     #   # With a block:
@@ -746,11 +746,7 @@ module Formtastic #:nodoc:
     # This is an absolute abomination, but so is the official Rails select_date().
     #
     def date_or_datetime_input(method, options)
-      position = { :year => 1, :month => 2, :day => 3, :hour => 4, :minute => 5, :second => 6 }
-      inputs   = options.delete(:order) || I18n.translate(:'date.order') || [:year, :month, :day]
-
-      time_inputs = [:hour, :minute]
-      time_inputs << [:second] if options[:include_seconds]
+      inputs = inputs_for_date_or_datetime(method, options)
 
       list_items_capture = ""
       hidden_fields_capture = ""
@@ -759,11 +755,9 @@ module Formtastic #:nodoc:
       datetime     = @object ? @object.send(method) : nil
       html_options = options.delete(:input_html) || {}
 
-      (inputs + time_inputs).each do |input|
-        html_id    = generate_html_id(method, "#{position[input]}i")
-        field_name = "#{method}(#{position[input]}i)"
+      inputs.each do |(input, field_name, html_id)|
         if options["discard_#{input}".intern]
-          break if time_inputs.include?(input)
+          break if [:hour, :minute, :second].include?(input)
           
           hidden_value = datetime.respond_to?(input) ? datetime.send(input) : datetime
           hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
@@ -781,6 +775,19 @@ module Formtastic #:nodoc:
       hidden_fields_capture + field_set_and_list_wrapping_for_method(method, options, list_items_capture)
     end
 
+    # Compiles array of ordered inputs for date, time and datetime with the field name and HTML ID
+    #
+    def inputs_for_date_or_datetime(method, options)
+      position = { :year => 1, :month => 2, :day => 3, :hour => 4, :minute => 5, :second => 6 }
+      inputs   = options.delete(:order) || I18n.translate(:'date.order') || [:year, :month, :day]
+
+      time_inputs = [:hour, :minute]
+      time_inputs << [:second] if options[:include_seconds]
+
+      (inputs + time_inputs).map do |input|
+        [ input, "#{method}(#{position[input]}i)", generate_html_id(method, "#{position[input]}i") ]
+      end
+    end
 
     # Outputs a fieldset containing a legend for the label text, and an ordered list (ol) of list
     # items, one for each possible choice in the belongs_to association.  Each li contains a
