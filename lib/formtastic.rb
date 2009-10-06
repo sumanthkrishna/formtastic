@@ -755,9 +755,9 @@ module Formtastic #:nodoc:
       hidden_fields_capture + field_set_and_list_wrapping_for_method(method, options, list_items_capture)
     end
 
-    # Compiles array of ordered inputs for date, time and datetime fields. Returns two arrays the
-    # first being the visible inputs and the second being the hidden inputs. Each array contains
-    # and array of the inputs with their respective field name and HTML ID, eg.
+    # Compiles arrays of ordered inputs for date, time and datetime fields. Returns two arrays being
+    # the visible inputs and hidden inputs respectively. Each array contains an array of the inputs
+    # with their respective field name and HTML ID, eg.
     #
     #   [ [ :year,  "created_at(1i)", "post_created_at_1i" ],
     #     [ :month, "created_at(2i)", "post_created_at_2i" ],
