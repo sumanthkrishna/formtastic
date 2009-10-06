@@ -748,29 +748,11 @@ module Formtastic #:nodoc:
     def date_or_datetime_input(method, options)
       inputs = inputs_for_date_or_datetime(method, options)
 
-      list_items_capture = ""
-      hidden_fields_capture = ""
-
       # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
-      datetime     = @object ? @object.send(method) : nil
-      html_options = options.delete(:input_html) || {}
+      datetime = @object ? @object.send(method) : nil
 
-      inputs.each do |(input, field_name, html_id)|
-        if options["discard_#{input}".intern]
-          break if [:hour, :minute, :second].include?(input)
-          
-          hidden_value = datetime.respond_to?(input) ? datetime.send(input) : datetime
-          hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
-        else
-          opts = set_options(options).merge(:prefix => @object_name, :field_name => field_name)
-          item_label_text = I18n.t(input.to_s, :default => input.to_s.humanize, :scope => [:datetime, :prompts])
-
-          list_items_capture << template.content_tag(:li,
-            template.content_tag(:label, item_label_text, :for => html_id) +
-            template.send("select_#{input}".intern, datetime, opts, html_options.merge(:id => html_id))
-          )
-        end
-      end
+      hidden_fields_capture = hidden_fields_for_date_or_datetime(inputs, datetime, options)
+      list_items_capture = list_items_for_date_or_datetime(inputs, datetime, options)
 
       hidden_fields_capture + field_set_and_list_wrapping_for_method(method, options, list_items_capture)
     end
@@ -787,6 +769,39 @@ module Formtastic #:nodoc:
       (inputs + time_inputs).map do |input|
         [ input, "#{method}(#{position[input]}i)", generate_html_id(method, "#{position[input]}i") ]
       end
+    end
+
+    def list_items_for_date_or_datetime(inputs, value, options)
+      list_items_capture = ""
+      html_options = options.delete(:input_html) || {}
+
+      inputs.each do |(input, field_name, html_id)|
+        if options["discard_#{input}".intern]
+          [:hour, :minute, :second].include?(input) ? break : next
+        end
+
+        opts = set_options(options).merge(:prefix => @object_name, :field_name => field_name)
+        item_label_text = I18n.t(input.to_s, :default => input.to_s.humanize, :scope => [:datetime, :prompts])
+
+        list_items_capture << template.content_tag(:li,
+          template.content_tag(:label, item_label_text, :for => html_id) +
+          template.send("select_#{input}".intern, value, opts, html_options.merge(:id => html_id))
+        )
+      end
+      list_items_capture
+    end
+
+    def hidden_fields_for_date_or_datetime(inputs, value, options)
+      hidden_fields_capture = ""
+      inputs.each do |(input, field_name, html_id)|
+        if options["discard_#{input}".intern]
+          break if [:hour, :minute, :second].include?(input)
+
+          hidden_value = value.respond_to?(input) ? value.send(input) : value
+          hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
+        end
+      end
+      hidden_fields_capture
     end
 
     # Outputs a fieldset containing a legend for the label text, and an ordered list (ol) of list
