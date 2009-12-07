@@ -1,5 +1,5 @@
 # coding: utf-8
-require File.dirname(__FILE__) + '/test_helper'
+require File.dirname(__FILE__) + '/spec_helper'
 
 describe 'SemanticFormHelper' do
   
@@ -14,7 +14,7 @@ describe 'SemanticFormHelper' do
 
     it 'yields an instance of SemanticFormBuilder' do
       semantic_form_for(:post, ::Post.new, :url => '/hello') do |builder|
-        builder.class.should == Formtastic::SemanticFormBuilder
+        builder.class.should == ::Formtastic::SemanticFormBuilder
       end
     end
 
@@ -79,13 +79,23 @@ describe 'SemanticFormHelper' do
         builder.object_name.to_s.should == "post" # TODO: is this forced .to_s a bad assumption somewhere?
       end
     end
-
+    
+    describe "with :builder option" do
+      it "yields an instance of the given builder" do
+        class MyAwesomeCustomBuilder < ::Formtastic::SemanticFormBuilder
+        end
+        semantic_form_for(:post, ::Post.new, :url => '/hello', :builder => MyAwesomeCustomBuilder) do |builder|
+          builder.class.should == MyAwesomeCustomBuilder
+        end
+      end
+    end
+    
   end
 
   describe '#semantic_fields_for' do
     it 'yields an instance of SemanticFormBuilder' do
       semantic_fields_for(:post, ::Post.new, :url => '/hello') do |builder|
-        builder.class.should == Formtastic::SemanticFormBuilder
+        builder.class.should == ::Formtastic::SemanticFormBuilder
       end
     end
   end
@@ -93,7 +103,7 @@ describe 'SemanticFormHelper' do
   describe '#semantic_form_remote_for' do
     it 'yields an instance of SemanticFormBuilder' do
       semantic_form_remote_for(:post, ::Post.new, :url => '/hello') do |builder|
-        builder.class.should == Formtastic::SemanticFormBuilder
+        builder.class.should == ::Formtastic::SemanticFormBuilder
       end
     end
   end
@@ -101,7 +111,7 @@ describe 'SemanticFormHelper' do
   describe '#semantic_form_for_remote' do
     it 'yields an instance of SemanticFormBuilder' do
       semantic_remote_form_for(:post, ::Post.new, :url => '/hello') do |builder|
-        builder.class.should == Formtastic::SemanticFormBuilder
+        builder.class.should == ::Formtastic::SemanticFormBuilder
       end
     end
   end

@@ -148,7 +148,7 @@ If you want to customize the label text, or render some hint text below the fiel
 
 <pre>
   <% semantic_form_for @post do |form| %>
-    <% form.inputs :name => "Basic", :id => "basic" do %>
+    <% form.inputs "Basic", :id => "basic" do %>
       <%= form.input :title %>
       <%= form.input :body %>
     <% end %>
@@ -311,12 +311,12 @@ Formtastic supports localized *labels*, *hints*, *legends*, *actions* using the 
 
 <pre>
   <% semantic_form_for Post.new do |form| %>
-    <% inputs do %>
+    <% form.inputs do %>
       <%= form.input :title %>      # => :label => "Choose a title...", :hint => "Choose a good title for you post."
       <%= form.input :body %>       # => :label => "Write something...", :hint => "Write something inspiring here."
       <%= form.input :section %>    # => :label => I18n.t('activerecord.attributes.user.section')  or 'Section'
     <% end %>
-    <% buttons do %>
+    <% form.buttons do %>
       <%= form.commit_button %>     # => "Create my {{model}}"
     <% end %>
   <% end %>
@@ -324,11 +324,11 @@ Formtastic supports localized *labels*, *hints*, *legends*, *actions* using the 
 
 *4. Localized titles (a.k.a. legends):*
 
-_Note: Slightly different because Formtastic can't guess how you group fields in a form._
+_Note: Slightly different because Formtastic can't guess how you group fields in a form. Legend text can be set with first (as in the sample below) specified value, or :name/:title options - depending on what flavor is preferred._
 
 <pre>
   <% semantic_form_for @post do |form| %>
-    <% inputs :title => :post_details do %>   # => :title => "Post details"
+    <% form.inputs :post_details do %>   # => :title => "Post details"
       # ...
     <% end %>
     # ...
@@ -339,12 +339,12 @@ _Note: Slightly different because Formtastic can't guess how you group fields in
 
 <pre>
   <% semantic_form_for @post do |form| %>
-    <% inputs do %>
+    <% form.inputs do %>
       <%= form.input :title %>      # => :label => "Choose a title...", :hint => "Choose a good title for you post."
       <%= form.input :body, :hint => false %>                 # => :label => "Write something..."
       <%= form.input :section, :label => 'Some section' %>    # => :label => 'Some section'
     <% end %>
-    <% buttons do %>
+    <% form.buttons do %>
       <%= form.commit_button :dummie %>     # => "Launch!"
     <% end %>
   <% end %>
@@ -360,12 +360,12 @@ If I18n-lookups is disabled, i.e.:
 
 <pre>
   <% semantic_form_for @post do |form| %>
-    <% inputs do %>
+    <% form.inputs do %>
       <%= form.input :title, :label => true %>      # => :label => "Choose a title..."
       <%= form.input :body, :label => true %>       # => :label => "Write something..."
       <%= form.input :section, :label => true %>    # => :label => I18n.t('activerecord.attributes.user.section')  or 'Section'
     <% end %>
-    % buttons do %>
+    <% form.buttons do %>
       <%= form.commit_button true %>                # => "Save changes" (if we are in edit that is...)
     <% end %>
   <% end %>
@@ -416,11 +416,60 @@ h2. Configuration
 Run @./script/generate formtastic@ to copy a commented out config file into @config/initializers/formtastic.rb@. You can "view the configuration file on GitHub":http://github.com/justinfrench/formtastic/blob/master/generators/formtastic/templates/formtastic.rb
 
 
+h2. Form Generator
+
+There's a Formtastic form code generator to make your transition to Formtastic easier. All you have to do is to *specify an existing model name*, and optionally specify view template framework (ERB/HAML), and you are good to go. *Note:* This won't overwrite any of you stuff. This is how you use it:
+
+*Alt. 1: Generate in terminal:*
+
+<pre>
+$ ./script/generate form Post
+# ---------------------------------------------------------
+#  GENERATED FORMTASTIC CODE
+# ---------------------------------------------------------
+
+<% form.inputs do %>
+  <%= form.input :title, :label => 'Title' %>
+  <%= form.input :body, :label => 'Body' %>
+  <%= form.input :published, :label => 'Published' %>
+<% end %>
+
+# ---------------------------------------------------------
+ Copied to clipboard - just paste it!
+</pre>
+
+*Alt. 2: Generate partial:*
+
+<pre>
+$ ./script/generate form Post --partial
+      exists  app/views/posts
+      create  app/views/posts/_form.html.erb
+</pre>
+
+To generate *HAML* markup, just add the @--haml@ as argument:
+
+<pre>
+$ ./script/generate form Post --haml
+      exists  app/views/admin/posts
+      create  app/views/admin/posts/_form.html.haml
+</pre>
+
+To specify the controller in a namespace (eg admin/posts instead of posts), use the --controller argument:
+
+<pre>
+$ ./script/generate form Post --partial --controller admin/posts
+      exists  app/views/admin/posts
+      create  app/views/admin/posts/_form.html.erb
+</pre>
+
+
 h2. Custom Inputs
 
 If you want to add your own input types to encapsulate your own logic or interface patterns, you can do so by subclassing SemanticFormBuilder and configuring Formtastic to use your custom builder class.
 
 @Formtastic::SemanticFormHelper.builder = MyCustomBuilder@
+
+
 
 
 h2. Status
@@ -432,7 +481,7 @@ h2. Dependencies
 
 There are none, but...
 
-* if you have the "ValidationReflection":http://github.com/redinger/validation_reflection plugin is installed, you won't have to specify the :required option (it checks the validations on the model instead).
+* if you have the "ValidationReflection":http://github.com/redinger/validation_reflection plugin is installed, you won't have to specify the @:required@ option (it checks the validations on the model instead).
 * if you want to use the @:country@ input, you'll need to install the "iso-3166-country-select plugin":http://github.com/rails/iso-3166-country-select (or any other country_select plugin with the same API).
 * "rspec":http://github.com/dchelimsky/rspec/, "rspec_hpricot_matchers":http://rubyforge.org/projects/rspec-hpricot/ and "rcov":http://github.com/relevance/rcov gems (plus any of their own dependencies) are required for the test suite.
 
@@ -440,7 +489,6 @@ There are none, but...
 h2. Compatibility
 
 I'm only testing Formtastic with the latest Rails 2.4.x stable release, and it should be fine under Rails 2.3.x as well (including nested forms). Patches are welcome to allow backwards compatibility, but I don't have the energy!
-
 
 h2. Got TextMate?
 
