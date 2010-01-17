@@ -6,6 +6,7 @@ module Formtastic #:nodoc:
   class SemanticFormBuilder < ActionView::Helpers::FormBuilder
 
     @@default_text_field_size = 50
+    @@default_text_area_height = 20
     @@all_fields_required_by_default = true
     @@include_blank_for_select_by_default = true
     @@required_string = proc { %{<abbr title="#{::Formtastic::I18n.t(:required)}">*</abbr>} }
@@ -14,12 +15,12 @@ module Formtastic #:nodoc:
     @@label_str_method = :humanize
     @@collection_label_methods = %w[to_label display_name full_name name title username login value to_s]
     @@inline_order = [ :input, :hints, :errors ]
-    @@file_methods = [ :file?, :public_filename ]
+    @@file_methods = [ :file?, :public_filename, :filename ]
     @@priority_countries = ["Australia", "Canada", "United Kingdom", "United States"]
     @@i18n_lookups_by_default = false
     @@default_commit_button_accesskey = nil
 
-    cattr_accessor :default_text_field_size, :all_fields_required_by_default, :include_blank_for_select_by_default,
+    cattr_accessor :default_text_field_size, :default_text_area_height, :all_fields_required_by_default, :include_blank_for_select_by_default,
                    :required_string, :optional_string, :inline_errors, :label_str_method, :collection_label_methods,
                    :inline_order, :file_methods, :priority_countries, :i18n_lookups_by_default, :default_commit_button_accesskey
 
@@ -310,9 +311,9 @@ module Formtastic #:nodoc:
       options = args.extract_options!
       text = options.delete(:label) || args.shift
 
-      if @object
+      if @object && @object.respond_to?(:new_record?)
         key = @object.new_record? ? :create : :update
-        object_name = @object.class.human_name
+        object_name = @object.class.name.underscore.humanize # TODO Rails Bug: should be able to call @object.class.human_name, see http://github.com/justinfrench/formtastic/issues/#issue/153 revisit for Rails 3
       else
         key = :submit
         object_name = @object_name.to_s.send(@@label_str_method)
@@ -413,6 +414,32 @@ module Formtastic #:nodoc:
       end
     end
     alias :errors_on :inline_errors_for
+
+    # Generates error messages for given method names and for base.
+    # You can pass a hash with html options that will be added to ul tag
+    #
+    # == Examples
+    #
+    #  f.semantic_errors # This will show only errors on base
+    #  f.semantic_errors :state # This will show errors on base and state
+    #  f.semantic_errors :state, :class => "awesome" # errors will be rendered in ul.awesome
+    #
+    def semantic_errors(*args)
+      html_options = args.extract_options!
+      full_errors = args.inject([]) do |array, method|
+        attribute = localized_string(method, method.to_sym, :label) || humanized_attribute_name(method)
+        errors = Array(@object.errors[method.to_sym]).to_sentence
+        errors.present? ? array << [attribute, errors].join(" ") : array ||= []
+      end
+      full_errors << @object.errors.on_base
+      full_errors.flatten!
+      full_errors.compact!
+      return nil if full_errors.blank?
+      html_options[:class] ||= "errors"
+      template.content_tag(:ul, html_options) do
+        full_errors.map { |error| template.content_tag(:li, error) }.join
+      end
+    end
 
     protected
 
@@ -523,7 +550,7 @@ module Formtastic #:nodoc:
 
       def basic_input_helper(form_helper_method, type, method, options) #:nodoc:
         html_options = options.delete(:input_html) || {}
-        html_options = default_string_options(method, type).merge(html_options) if [:numeric, :string, :password].include?(type)
+        html_options = default_string_options(method, type).merge(html_options) if [:numeric, :string, :password, :text].include?(type)
 
         self.label(method, options_for_label(options)) <<
         self.send(form_helper_method, method, html_options)
@@ -840,8 +867,8 @@ module Formtastic #:nodoc:
       #   f.input :created_at, :as => :date, :selected => 1.day.ago
       #   f.input :created_at, :as => :date, :selected => nil   # override any defaults: select none
       #
-      # Some of Rails' options for select_date are supported, but not everything yet.
-      #
+      # Some of Rails' options for select_date are supported, but not everything yet, see
+      # documentation of date_or_datetime_input() for more information.
       def date_input(method, options)
         options = set_include_blank(options)
         date_or_datetime_input(method, options.merge(:discard_hour => true))
@@ -859,8 +886,8 @@ module Formtastic #:nodoc:
       #   f.input :created_at, :as => :datetime, :selected => 1.day.ago
       #   f.input :created_at, :as => :datetime, :selected => nil   # override any defaults: select none
       #
-      # Some of Rails' options for select_date are supported, but not everything yet.
-      #
+      # Some of Rails' options for select_date are supported, but not everything yet, see
+      # documentation of date_or_datetime_input() for more information.
       def datetime_input(method, options)
         options = set_include_blank(options)
         date_or_datetime_input(method, options)
@@ -877,13 +904,17 @@ module Formtastic #:nodoc:
       #   f.input :created_at, :as => :time, :selected => 1.hour.ago
       #   f.input :created_at, :as => :time, :selected => nil   # override any defaults: select none
       #
-      # Some of Rails' options for select_time are supported, but not everything yet.
-      #
+      # Some of Rails' options for select_time are supported, but not everything yet, see
+      # documentation of date_or_datetime_input() for more information.
       def time_input(method, options)
         options = set_include_blank(options)
         date_or_datetime_input(method, options.merge(:discard_year => true, :discard_month => true, :discard_day => true))
       end
 
+      # Helper method used by :as => (:date|:datetime|:time).  Generates a fieldset containing a
+      # legend (for what would normally be considered the label), and an ordered list of list items
+      # for year, month, day, hour, etc, each containing a label and a select.  Example:
+      #
       # <fieldset>
       #   <legend>Created At</legend>
       #   <ol>
@@ -914,11 +945,24 @@ module Formtastic #:nodoc:
       #   </ol>
       # </fieldset>
       #
+      # This is an absolute abomination, but so is the official Rails select_date().
+      #
+      # Options:
+      #
+      #   * @:order => [:month, :day, :year]@
+      #   * @:include_seconds@ => true@
+      #   * @:selected => Time.mktime(2008)@
+      #   * @:selected => Date.new(2008)@
+      #   * @:selected => nil@
+      #   * @:discard_(year|month|day|hour|minute) => true@
+      #   * @:include_blank => true@
       def date_or_datetime_input(method, options)
         visible_inputs, hidden_inputs = inputs_for_date_or_datetime(method, options)
 
         # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
-        default_time = ::Time.now
+        default_time = options.has_key?(:selected) ? options[:selected] : ::Time.now
+
+        # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
         datetime = options[:selected] || (@object ? @object.send(method) : default_time) || default_time
 
         hidden_fields_capture = hidden_fields_for_date_or_datetime(hidden_inputs, datetime)
@@ -1459,7 +1503,9 @@ module Formtastic #:nodoc:
       def default_string_options(method, type) #:nodoc:
         column = self.column_for(method)
 
-        if type == :numeric || column.nil? || column.limit.nil?
+        if type == :text
+          { :cols => @@default_text_field_size, :rows => @@default_text_area_height }
+        elsif type == :numeric || column.nil? || column.limit.nil?
           { :size => @@default_text_field_size }
         else
           { :maxlength => column.limit, :size => [column.limit, @@default_text_field_size].min }
@@ -1505,8 +1551,13 @@ module Formtastic #:nodoc:
       end
 
       def humanized_attribute_name(method) #:nodoc:
-        if @object && @object.class.respond_to?(:human_attribute_name) && @@label_str_method == :humanize
-          @object.class.human_attribute_name(method.to_s)
+        if @object && @object.class.respond_to?(:human_attribute_name)
+          humanized_name = @object.class.human_attribute_name(method.to_s)
+          if humanized_name == method.to_s.send(:humanize)
+            method.to_s.send(@@label_str_method)
+          else
+            humanized_name
+          end
         else
           method.to_s.send(@@label_str_method)
         end
@@ -1649,8 +1700,8 @@ module Formtastic #:nodoc:
           class_names << "formtastic"
           class_names << case record_or_name_or_array
             when String, Symbol then record_or_name_or_array.to_s               # :post => "post"
-            when Array then record_or_name_or_array.last.class.to_s.underscore  # [@post, @comment] # => "comment"
-            else record_or_name_or_array.class.to_s.underscore                  # @post => "post"
+            when Array then ActionController::RecordIdentifier.singular_class_name(record_or_name_or_array.last.class)  # [@post, @comment] # => "comment"
+            else ActionController::RecordIdentifier.singular_class_name(record_or_name_or_array.class)                  # @post => "post"
           end
           options[:html][:class] = class_names.join(" ")
 
