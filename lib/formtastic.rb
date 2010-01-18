@@ -947,23 +947,16 @@ module Formtastic #:nodoc:
       #
       # This is an absolute abomination, but so is the official Rails select_date().
       #
-      # Options:
-      #
-      #   * @:order => [:month, :day, :year]@
-      #   * @:include_seconds@ => true@
-      #   * @:selected => Time.mktime(2008)@
-      #   * @:selected => Date.new(2008)@
-      #   * @:selected => nil@
-      #   * @:discard_(year|month|day|hour|minute) => true@
-      #   * @:include_blank => true@
       def date_or_datetime_input(method, options)
+        if options.key?(:selected)
+          ::ActiveSupport::Deprecation.warn(":selected is deprecated (and may still have changed behavior) in #{options[:as]} inputs, use :default instead, see commit 09fc6b4 and issue #152 on github.com/justinfrench/formtastic")
+          options[:default] = options[:selected]
+        end
+
         visible_inputs, hidden_inputs = inputs_for_date_or_datetime(method, options)
 
-        # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
-        default_time = options.has_key?(:selected) ? options[:selected] : ::Time.now
-
-        # Gets the datetime object. It can be a Fixnum, Date or Time, or nil.
-        datetime = options[:selected] || (@object ? @object.send(method) : default_time) || default_time
+        datetime = options.key?(:default) ? options[:default] : Time.now # can't do an || because nil is an important value
+        datetime = @object.send(method) if @object && @object.send(method) # object trumps :default
 
         hidden_fields_capture = hidden_fields_for_date_or_datetime(hidden_inputs, datetime)
         list_items_capture = list_items_for_date_or_datetime(visible_inputs, datetime, options)
@@ -1007,13 +1000,13 @@ module Formtastic #:nodoc:
         list_items_capture = ""
         html_options = options.delete(:input_html) || {}
 
-        inputs.each do |(input, field_name, html_id)|
+        inputs.each do |(input, field_name, input_id)|
           opts = strip_formtastic_options(options).merge(:prefix => @object_name, :field_name => field_name)
           item_label_text = ::I18n.t(input.to_s, :default => input.to_s.humanize, :scope => [:datetime, :prompts])
 
           list_items_capture << template.content_tag(:li,
-            template.content_tag(:label, item_label_text, :for => html_id) +
-            template.send("select_#{input}", value, opts, html_options.merge(:id => html_id))
+            template.content_tag(:label, item_label_text, :for => input_id) +
+            template.send("select_#{input}", value, opts, html_options.merge(:id => input_id))
           )
         end
         list_items_capture
@@ -1023,9 +1016,9 @@ module Formtastic #:nodoc:
       #
       def hidden_fields_for_date_or_datetime(inputs, value)
         hidden_fields_capture = ""
-        inputs.each do |(input, field_name, html_id)|
+        inputs.each do |(input, field_name, input_id)|
           hidden_value = value.respond_to?(input) ? value.send(input) : value
-          hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => html_id)
+          hidden_fields_capture << template.hidden_field_tag("#{@object_name}[#{field_name}]", (hidden_value || 1), :id => input_id)
         end
         hidden_fields_capture
       end
