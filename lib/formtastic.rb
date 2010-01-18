@@ -992,13 +992,13 @@ module Formtastic #:nodoc:
         all_inputs = []
         (inputs + time_inputs).each do |input|
           # Excludes remaining times inputs if a time input is discarded
-          break if options["discard_#{input}".intern] && [:hour, :minute, :second].include?(input)
+          break if options[:"discard_#{input}"] && [:hour, :minute, :second].include?(input)
 
           all_inputs << [ input, "#{method}(#{position[input]}i)", generate_html_id(method, "#{position[input]}i") ]
         end
 
         # Partitions inputs into visible and hidden arrays based on the discard option for each input
-        all_inputs.partition {|input| options["discard_#{input[0]}".intern].nil? }
+        all_inputs.partition {|input| options[:"discard_#{input[0]}"].nil? }
       end
 
       # List items for visible inputs of a date, time or datetime
@@ -1013,7 +1013,7 @@ module Formtastic #:nodoc:
 
           list_items_capture << template.content_tag(:li,
             template.content_tag(:label, item_label_text, :for => html_id) +
-            template.send("select_#{input}".intern, value, opts, html_options.merge(:id => html_id))
+            template.send("select_#{input}", value, opts, html_options.merge(:id => html_id))
           )
         end
         list_items_capture
